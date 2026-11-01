@@ -130,27 +130,56 @@ public class KeystoneBootService extends Service {
         int keyInterval = Math.max(150, cfg.keyIntervalMs);
 
         if (cfg.mode == KeystoneConfig.MODE_WAKE_SAVED) {
-            // Mode 0: Enter 4-Corner Fine-Tune (四角微调) and do a 1-step up/down nudge on Top-Right
-            // so KeystoneHal loads Grid 0 (/metadata/keystone/warping_4point.conf) and executes hardware Warp
-            // while preserving the exact calibrated 4-corner coordinates.
-            sendKey("down", keyInterval);
-            sendKey("enter", 800);
-            sendKey("right", keyInterval);
-            sendKey("enter", keyInterval + 100);
-            sendKey("up", keyInterval + 100);
-            sendKey("down", keyInterval + 100);
-            sendKey("back", keyInterval + 100);
-            Thread.sleep(200);
-            // First BACK exits KeystoneManualView back to the 3-button menu (takes ~600ms animation)
-            sendKey("back", 850);
-            // Second BACK closes the 3-button menu
-            sendKey("back", 400);
-            String summary = "已进入四角梯形校正并恢复已保存的校准位置";
-            KeystoneConfig.saveLastStatus(this, summary);
-            sendBroadcast(new Intent("com.xiaomi.keystoneboot.ACTION_STATUS_UPDATED"));
-            showToast("自动梯形校正完成（" + summary + "）");
-            Log.i(TAG, summary);
-            return;
+            if (!isTest) {
+                // On cold boot, ProjGSensor (DEGREE_INIT) runs SetAngle(0, angleH) which resets angleV to 0
+                // and clamps Top-Right [2,0] back to (0, 0).
+                // Step A: Enter Fast Angle (mode = 1) and restore angleV = cfg.angleV (default +5)
+                if (cfg.angleV != 0) {
+                    sendKey("enter", 800);
+                    if (cfg.angleV > 0) {
+                        sendKeyRepeat("up", cfg.angleV, keyInterval);
+                    } else {
+                        sendKeyRepeat("down", -cfg.angleV, keyInterval);
+                    }
+                    Thread.sleep(200);
+                    // Exit Fast Angle back to the 3-button menu (focus returns to button 0: 快速调节)
+                    sendKey("back", 850);
+                }
+
+                // Step B: Enter 4-Corner Fine-Tune (四角微调, button 1) and restore Top-Right [2,0]
+                sendKey("down", keyInterval);
+                sendKey("enter", 800);
+                sendKey("right", keyInterval);
+                adjustCurrentCorner(cfg.trUp, cfg.trDown, cfg.trLeft, cfg.trRight, keyInterval);
+                Thread.sleep(200);
+                sendKey("back", 850);
+                sendKey("back", 400);
+                String summary = "已恢复冷开机校准位置 (垂直=" + cfg.angleV + ", 右上下" + cfg.trDown + "左" + cfg.trLeft + ")";
+                KeystoneConfig.saveLastStatus(this, summary);
+                sendBroadcast(new Intent("com.xiaomi.keystoneboot.ACTION_STATUS_UPDATED"));
+                showToast("自动梯形校正完成（" + summary + "）");
+                Log.i(TAG, summary);
+                return;
+            } else {
+                // In manual test mode (when already calibrated), just enter 4-Corner Fine-Tune
+                // and do a 1-step up/down nudge on Top-Right so KeystoneHal reloads Grid 0 without shifting coordinates.
+                sendKey("down", keyInterval);
+                sendKey("enter", 800);
+                sendKey("right", keyInterval);
+                sendKey("enter", keyInterval + 100);
+                sendKey("up", keyInterval + 100);
+                sendKey("down", keyInterval + 100);
+                sendKey("back", keyInterval + 100);
+                Thread.sleep(200);
+                sendKey("back", 850);
+                sendKey("back", 400);
+                String summary = "已唤醒并保持当前四角校准位置";
+                KeystoneConfig.saveLastStatus(this, summary);
+                sendBroadcast(new Intent("com.xiaomi.keystoneboot.ACTION_STATUS_UPDATED"));
+                showToast("自动梯形校正完成（" + summary + "）");
+                Log.i(TAG, summary);
+                return;
+            }
         }
 
         if (cfg.mode == KeystoneConfig.MODE_FAST_ANGLE) {

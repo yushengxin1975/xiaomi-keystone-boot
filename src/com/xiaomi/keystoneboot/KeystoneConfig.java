@@ -12,8 +12,8 @@ public class KeystoneConfig {
     public static final int MODE_FOUR_CORNER = 2;     // 四角微调 (左上、右上、右下、左下)
 
     public boolean enabled = true;
-    public int bootDelaySec = 8;
-    public int keyIntervalMs = 250;
+    public int bootDelaySec = 12;
+    public int keyIntervalMs = 200;
     public int mode = MODE_WAKE_SAVED;
     public boolean resetFirst = false;
 
@@ -44,8 +44,8 @@ public class KeystoneConfig {
         SharedPreferences sp = getStorageContext(context).getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
         KeystoneConfig cfg = new KeystoneConfig();
         cfg.enabled = sp.getBoolean("enabled", true);
-        cfg.bootDelaySec = sp.getInt("bootDelaySec", 8);
-        cfg.keyIntervalMs = sp.getInt("keyIntervalMs", 250);
+        cfg.bootDelaySec = sp.getInt("bootDelaySec", 12);
+        cfg.keyIntervalMs = sp.getInt("keyIntervalMs", 200);
         cfg.mode = sp.getInt("mode", MODE_WAKE_SAVED);
         cfg.resetFirst = sp.getBoolean("resetFirst", false);
 
